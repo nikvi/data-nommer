@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+celery
+redis
+psycopg2-binary
+slack_sdk
+google-generativeai
+pymupdf
+requests

@@ -68,6 +68,10 @@ def process_pdf_task(self, file_data):
         
         metadata = completion.choices[0].message.parsed
 
+        # Log token usage
+        usage = completion.usage
+        print(f"[{name}] Tokens - input: {usage.prompt_tokens}, output: {usage.completion_tokens}, total: {usage.total_tokens}")
+
         # 4. Save to PostgreSQL
         conn = get_connection()
         cur = conn.cursor()

@@ -5,7 +5,7 @@ A Slack bot that automatically syncs PDF files from Slack channels, extracts tex
 ## Architecture
 
 ```
-┌──────────────┐        POST /sync/{channel_id}        ┌──────────────┐
+┌──────────────┐        POST /sync/{channel_id}         ┌──────────────┐
 │              │ ─────────────────────────────────────▶ │              │
 │    Client    │                                        │   API        │
 │              │ ◀───────────────────────────────────── │   (FastAPI)  │
@@ -17,7 +17,7 @@ A Slack bot that automatically syncs PDF files from Slack channels, extracts tex
                                                               │ 2. Enqueue task
                                                               ▼
 ┌──────────────┐                                        ┌──────────────┐
-│              │          task dispatch / results        │              │
+│              │          task dispatch / results       │              │
 │    Redis     │ ◀────────────────────────────────────▶ │   Worker     │
 │   (Broker)   │                                        │   (Celery)   │
 └──────────────┘                                        └──────┬───────┘
@@ -30,7 +30,7 @@ A Slack bot that automatically syncs PDF files from Slack channels, extracts tex
                                                               ▼
 ┌──────────────┐                                        ┌──────────────┐
 │  PostgreSQL  │ ◀───────────────────────────────────── │   OpenAI     │
-│  (Storage)   │          INSERT extracted data          │  (Metadata)  │
+│  (Storage)   │          INSERT extracted data         │  (Metadata)  │
 └──────────────┘                                        └──────────────┘
 
 ┌──────────────┐

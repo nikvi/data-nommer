@@ -1,17 +1,24 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from slack_sdk import WebClient
 from redis import Redis
 from .database import init_db, get_connection
 from .tasks import process_pdf_task
 
-app = FastAPI(title="Slack PDF Data Bot")
 slack_client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
 
-@app.on_event("startup")
-def startup_event():
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     init_db()
+    yield
+    # Shutdown (nothing to do)
+
+
+app = FastAPI(title="Slack PDF Data Bot", lifespan=lifespan)
 
 @app.get("/health")
 def health_check():

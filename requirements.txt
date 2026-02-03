@@ -4,6 +4,9 @@ celery
 redis
 psycopg2-binary
 slack_sdk
-google-generativeai
+openai
 pymupdf
 requests
+pydantic
+pytest
+httpx

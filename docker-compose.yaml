@@ -1,6 +1,5 @@
-version: '3.8'
-
 services:
+  # 1. Database - Stores extracted text and metadata
   db:
     image: postgres:15
     environment:
@@ -11,12 +10,24 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d slack_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # 2. Broker - Manages the PDF processing queue
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # 3. API - FastAPI interface for sync and queries
   api:
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -28,22 +39,47 @@ services:
       - DATABASE_URL=postgresql://user:password@db:5432/slack_db
       - REDIS_URL=redis://redis:6379/0
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
+  # 4. Worker - Performs CPU-heavy extraction and OpenAI calls
   worker:
     build: .
-    command: celery -A app.tasks worker --loglevel=info --concurrency=4
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --uid=nobody
+    volumes:
+      - .:/app
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/slack_db
       - REDIS_URL=redis://redis:6379/0
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Pings the worker to ensure it is responsive to the queue
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 5. Monitoring - Real-time progress bar and task status
+  flower:
+    image: mher/flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      worker:
+        condition: service_healthy
 
 volumes:
   postgres_data:
